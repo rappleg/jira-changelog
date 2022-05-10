@@ -91,7 +91,6 @@ export function getTicketReporters(tickets) {
       reporters[email] = {
         email,
         name: displayName,
-        slackUser: ticket.slackUser,
         tickets: [ticket]
       };
     } else {
@@ -210,14 +209,16 @@ export function transformCommitLogs(config, logs) {
  * @param {Object} config - The configuration object
  * @param {Array} changelog - The changelog list.
  * @param {Array} releaseVersions - Jira release versions for this changelog.
+ * @param {Array} info - Release info for this changelog.
  *
  * @return {String}
  */
-export async function generateTemplateData(config, changelog, releaseVersions) {
+export async function generateTemplateData(config, changelog, releaseVersions, info) {
   let data = await transformCommitLogs(config, changelog);
   if (typeof config.transformData == 'function') {
     data = await Promise.resolve(config.transformData(data));
   }
+  data.info = info;
   data.jira = {
     baseUrl: config.jira.baseUrl,
     releaseVersions: releaseVersions,

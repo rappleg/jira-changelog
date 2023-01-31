@@ -1,9 +1,9 @@
 import Slack from './Slack';
-import git from 'simple-git';
+import git from 'simple-git/promise';
 
 /**
  * Connect to the source control system and return commit logs for a range.
- * Currenty this only connects to git.
+ * Currently this only connects to git.
  *
  * Range Object
  * ------------
@@ -29,8 +29,7 @@ import git from 'simple-git';
  *   summary: <short commit message>,
  *   fullText: <full commit message>,
  *   authorName: <name of commit author>,
- *   authorEmail: <email of commit author>,
- *   slackUser: <object of slack user, as matched by authorEmail>
+ *   authorEmail: <email of commit author>
  * }
  * ```
  *
@@ -50,50 +49,35 @@ export default class SourceControl {
    *
    * @return {Promsie} Resolves to a list of top-level commit objects
    */
-  getCommitLogs(workspaceDir, range) {
+  async getCommitLogs(workspaceDir, range) {
     const workspace = git(workspaceDir);
 
-    return new Promise((resolve, reject) => {
+    const opts = {
+      format: {
+        revision: '%H',
+        date: '%ai',
+        summary: '%s%d',
+        fullText: '%s\n%d\n%b',
+        authorName: '%aN',
+        authorEmail: '%ae',
+        parents: '%P'
+      },
+      ...range,
+      symmetric: range.symmetric,
+    }
 
-      const opts = {
-        format: {
-          revision: '%H',
-          date: '%ai',
-          summary: '%s%d',
-          fullText: '%s\n%d\n%b',
-          authorName: '%aN',
-          authorEmail: '%ae',
-          parents: '%P'
-        },
-        ...range,
-        symmetric: range.symmetric,
-      }
-
-      workspace.log(opts, (err, response) => {
-        if (err) {
-          return reject(err);
-        }
-
-        // Organize commits
-        const graph = this.simpleTopLevelGraph(response.all);
-        const logs = this.consolodateCommitMessages(graph);
-
-        // Add slack users to commit logs
-        const promises = logs.map((log) => {
-          return this.slack.findUser(log.authorEmail, log.authorName)
-            .catch((err) => { console.log(err); }) // ignore errors
-            .then((slackUser) => {
-              log.slackUser = slackUser;
-              return log;
-            });
-        });
-        promises.push(Promise.resolve());
-
-        Promise.all(promises).then(() => {
-          resolve(logs);
-        });
+    const gitLogResponse = await workspace.log(opts)
+      .then( function (resp) {
+        return resp.all
+      })
+      .catch( function (err) {
+        throw err;
       });
-    });
+
+    // Organize commits
+    const graph = this.simpleTopLevelGraph(gitLogResponse);
+    const logs = this.consolidateCommitMessages(graph);
+    return logs;
   }
 
   /**
@@ -152,7 +136,7 @@ export default class SourceControl {
    *    14 ⟋
    *    15
    *
-   * The simplfied graph would look like:
+   * The simplified graph would look like:
    *
    *    - 1
    *    - 2
@@ -261,7 +245,7 @@ export default class SourceControl {
    * @param {Array} graph - Commit history graph
    * @return {Array}
    */
-  consolodateCommitMessages(graph) {
+  consolidateCommitMessages(graph) {
     const commits = [ ...graph ];
 
     commits.forEach((item) => {

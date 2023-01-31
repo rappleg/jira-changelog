@@ -15,7 +15,7 @@ module.exports = {
       // Auth token of the user to login with
       // https://confluence.atlassian.com/cloud/api-tokens-938839638.html
       token: undefined,
-      // If you need to set some jira-client option use this object. 
+      // If you need to set some jira-client option use this object.
       // Check jira-client docs for available options: https://jira-node.github.io/typedef/index.html#static-typedef-JiraApiOptions
       options: {},
     },
@@ -75,8 +75,8 @@ module.exports = {
     // This can include from/to git commit references
     // and or after/before datestamps.
     defaultRange: {
-      from: "origin/prod",
-      to: "origin/stage",
+      from: "upstream/release",
+      to: "upstream/master",
 
       // symmetric='...'
       // non-symmetric='..'
@@ -127,7 +127,7 @@ Jira Tickets
 Other Commits
 ---------------------
 <% blockNoTickets.forEach(commit => { -%>
-  * <%= commit.slackUser ? '@'+commit.slackUser.name : commit.authorName %> - <<%= commit.revision.substr(0, 7) %>> - <%= commit.summary %>
+  * <<%= commit.revision.substr(0, 7) %>> - <%= commit.summary %>
 <% }); -%>
 <% if (!blockNoTickets.length) {%> ~ None ~ <% } %>
 <% } -%>
@@ -137,7 +137,7 @@ Other Commits
 Pending Approval
 ---------------------
 <% blockPendingByOwner.forEach(owner => { -%>
-<%= (owner.slackUser) ? '@'+owner.slackUser.name : owner.email %>
+<%= owner.email %>
 <% owner.tickets.forEach((ticket) => { -%>
   * <%= jira.baseUrl + '/browse/' + ticket.key %>
 <% }); -%>
@@ -145,6 +145,7 @@ Pending Approval
 <% if (!blockPendingByOwner.length) {%> ~ None. Yay! ~ <% } -%>
 <% } -%>
 <% if (tickets.reverted.length) { %>
+
 Reverted
 ---------------------
 <% tickets.reverted.forEach((ticket) => { -%>

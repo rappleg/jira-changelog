@@ -231,10 +231,9 @@ export default class Jira {
 
   /**
    * Retreive the jira issue by ID.
-   * Also attempt to match a slack user to the reporter's email address.
    *
    * @param {String} ticketId - The ticket ID of the issue to retrieve.
-   * @return {Promise} Resolves a jira issue object, with added `slackUser` property.
+   * @return {Promise} Resolves a jira issue object.
    */
   async getJiraIssue(ticketId) {
     if (!this.jira) {
@@ -243,14 +242,7 @@ export default class Jira {
 
     return this.jira.findIssue(ticketId).then((origTicket) => {
       const ticket = Object.assign({}, origTicket);
-      if (!this.config.slack.api || !ticket.fields.reporter)
-        return ticket;
-      return this.slack.findUser(ticket.fields.reporter.emailAddress, ticket.fields.reporter.displayName)
-      .then((slackUser) => {
-        ticket.slackUser = slackUser;
-        return ticket;
-      })
-      .catch(() => ticket);
+      return ticket;
     });
   }
 

@@ -63,6 +63,12 @@ async function runProgram() {
     }
     gitPath = path.resolve(gitPath);
 
+    const repoDir = gitPath.split('/').pop();
+    const releaseDate = new Date().toISOString().substr(0, 10);
+    const info = {
+      repoDir,
+      releaseDate
+    }
     const config = readConfigFile(gitPath);
     const jira = new Jira(config);
     const source = new SourceControl(config);
@@ -82,12 +88,12 @@ async function runProgram() {
     const changelog = await jira.generate(commitLogs, program.release);
 
     // Render template
-    const tmplData = await generateTemplateData(config, changelog, jira.releaseVersions);
-    const changelogMessage = renderTemplate(config, tmplData);
+    const tmplData = await generateTemplateData(config, changelog, jira.releaseVersions, info);
+    const entitles = new AllHtmlEntities();
+    const changelogMessage = entitles.decode(renderTemplate(config, tmplData));
 
     // Output to console
-    const entitles = new AllHtmlEntities();
-    console.log(entitles.decode(changelogMessage));
+    console.log(changelogMessage);
 
     // Post to slack
     if (program.slack) {
@@ -109,12 +115,11 @@ async function runProgram() {
 async function postToSlack(config, data, changelogMessage) {
   const slack = new Slack(config);
 
-  if (!slack.isEnabled() || !config.slack.channel) {
+  if (!slack.isEnabled() || !config.slack.webhookURL) {
     throw new Error('Error: Slack is not configured.');
-    return;
   }
 
-  console.log(`\nPosting changelog message to slack channel: ${config.slack.channel}...`);
+  console.log(`\nPosting changelog message to slack channel...`);
   try {
 
     // Transform for slack
@@ -123,7 +128,7 @@ async function postToSlack(config, data, changelogMessage) {
     }
 
     // Post to slack
-    await slack.postMessage(changelogMessage, config.slack.channel);
+    await slack.postMessage(changelogMessage);
     console.log('Sent');
 
   } catch(err) {
